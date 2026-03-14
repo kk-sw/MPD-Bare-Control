@@ -10,7 +10,7 @@
 
 ### Installation
 
-1. Download or clone the script:
+1. Download or clone the repository:
 
 2. Configure script
 
