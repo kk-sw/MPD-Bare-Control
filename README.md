@@ -48,5 +48,8 @@
 ### Contact:
 
  Web    : [GitHub](https://github.com/kk-sw/MPD-Bare-Control.git)
+ 
  Email  : [Mail](mailto:kksw@gmx.com)
+
+ 
  
