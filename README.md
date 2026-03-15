@@ -8,32 +8,18 @@
 * MPD Bare Control is a toy-project (as of now).
 * Tested with Music Player Daemon 0.24.4 (0.24.4) running on Raspberry Pi with connections from Windows 10/11
 
+
 ### Installation
 
 1. Download or clone the repository:
 
-2. Configure script
-
- At the top of the script, set your MPD server details:
-
- ```
- MPDHost = "192.165.0.1"
- MPDPort = 6600
- ```
-
- Optionally configure colors in `Theme` section.
-
-3. Run it:
+2. Run `mpd_control.ps1` or modify and run `mpd_control.bat` :
 
    ```
-   c:\> mpd_control.bat
+   PS C:\MPD-Bare-Control> .\mpd_control.ps1  192.168.1.1
+                                                ^- MPD Server Address
    ```
 
-4. If PowerShell blocks execution:
-
-   ```
-   PS C:\> powershell Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-   ```
 
 ### Screenshots
 
@@ -45,11 +31,17 @@
 
 ![](./mpd-control-simple.png)
 
+
+### Known Bugs
+
+ * During playback elapsed duration of the song is an estimate
+
+
 ### Contact:
 
  Web    : [GitHub](https://github.com/kk-sw/MPD-Bare-Control.git)
  
- Email  : [Mail](mailto:kksw@gmx.com)
+ Email  : kksw@gmx.com
 
  
  
