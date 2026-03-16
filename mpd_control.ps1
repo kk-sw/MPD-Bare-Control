@@ -1,10 +1,10 @@
-# 1206316
+# 0015
 # -----------------------------------
 #
 # MPD BareControl (PS)
 #
 # -----------------------------------
-# Dev: KK ; 2026-03-10-12
+# Dev: KK ; 2026 march 
 # -----------------------------------
 # Bugs:
 # - Elapsed play-time is estimated
@@ -31,8 +31,8 @@ $MPDPort = 6600
 #
 $ColorDashBack          = "Black"
 $ColorHeaderBack        = "DarkBlue"
-$ColorStatusBack        = "Gray"
-$ColorStatusFore        = "DarkGreen"
+$ColorStatusBack        = "DarkGreen"
+$ColorStatusFore        = "White"
 $ColorPlaylistFore      = "DarkYellow"
 $ColorNowPlaying        = "DarkGreen"
 
@@ -44,7 +44,6 @@ $ShowInfoPanel = $false;
 #
 # Log Config
 #
-#$ShowLog = $true;
 $ShowLog = $false;
 
 # Global index to track sequence position
@@ -475,13 +474,14 @@ function Run-Dashboard {
                     }
 
 
-                "d" {   # DEBUG
-                        $ShowLog = $true;
+                "d" {   # Log On/Off
+                        $ShowLog = -not $ShowLog ;
+
                     }
 
                 "f" {   # Fast-Forward
                         if ($playingState) {
-                            Send-MPDCommand "seekcur +5"
+                            Send-MPDCommand "seekcur +10"
                         }
                     }
 
@@ -567,8 +567,8 @@ function Run-Dashboard {
                 "9" {   #DEF_COLOR
                         $ColorDashBack          = "Black"
                         $ColorHeaderBack        = "DarkBlue"
-                        $ColorStatusBack        = "Gray"
-                        $ColorStatusFore        = "DarkGreen"
+                        $ColorStatusBack        = "DarkGreen"
+                        $ColorStatusFore        = "White"
                         $ColorPlaylistFore      = "DarkYellow"
                         $ColorNowPlaying        = "DarkGreen"
                     }
@@ -689,12 +689,13 @@ function Run-Dashboard {
         $updateTime = (Get-Date -Format 'yyyy MMMM dd  |  HH:mm:ss')
         $lineHead   = "  MPD BareControl (PS) v.1                  ($MPDHost`:$MPDPort)                            $updateTime "
 
-        #KEYS
-        $s = $([char]26)    # right arrow
+        # Control KEYS  #KEYS
+        $s = [char]0x2192     # right arrow 
         $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause  | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
         $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
         $lineKeys3  = "  I  $s Info Panel   |   V   $s MPD Info       |            | 1-6 $s Colors  |  9  $s Def-col. | D $s Debug log  "
 
+        # panel size
         $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length, $lineKeys3.Length | Measure-Object -Maximum).Maximum + 1
 
         #
@@ -723,14 +724,12 @@ function Run-Dashboard {
         #
         # Play state
         #
-#        Write-Block $width $ColorDashBack
-        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt "  $ColorStatusBack $ColorStatusFore $width
+        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt "  $ColorStatusFore $ColorStatusBack $width
         if ($volumeMuted) {
-            #Write-Text "Volume MUTED    "  $ColorStatusBack $ColorStatusFore 20
-            Write-Info "  Muted         "
+            Write-Info "Muted         "
         }
         if ($playingStateTxt -eq "pause") {
-            Write-Info "  Paused        "
+            Write-Info "Paused        "
         }
 
         #
@@ -738,22 +737,22 @@ function Run-Dashboard {
         #
         if ($ShowInfoPanel) {
             Write-Block $width $ColorDashBack
-            Write-Text "    >> Artist      : $artist"       $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "    >> Album       : $album"        $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "    >> AlbumArtist : $albumArtist"  $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Artist      : $artist"       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Album       : $album"        $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   AlbumArtist : $albumArtist"  $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
-            Write-Text "    >> Date        : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "    >> Title       : $trackTitle "       $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "    >> Duration    : $trackTotalStr"     $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "    >> Genre       : $trackGenre "       $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "    >> Bitrate     : $trackBitrate kbps" $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Date        : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Title       : $trackTitle "       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Duration    : $trackTotalStr"     $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Genre       : $trackGenre "       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Bitrate     : $trackBitrate kbps" $ColorNowPlaying    $ColorDashBack      $width
 
             $tmp = $trackFile.Substring(0, [Math]::Min($trackFile.Length, $width-22))
-            Write-Text "    >> Path        : $tmp"               $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Path        : $tmp"               $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
-            Write-Text "    >> Queue Size  : $playlistLength"    $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Queue Size  : $playlistLength"    $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
 
@@ -762,7 +761,7 @@ function Run-Dashboard {
 
         if ($playlistLength -eq "0") {
             Write-Block $width  DarkYellow
-            Write-Text "    >> No tracks in playlist << "    Black Yellow $width
+            Write-Text "                    >> No tracks in playlist << "    Black Yellow $width
             Write-Block $width  DarkYellow
         }
 
