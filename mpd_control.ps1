@@ -1,4 +1,4 @@
-# 700
+# 316261045
 # -----------------------------------
 #
 # MPD BareControl (PS)
@@ -7,7 +7,7 @@
 # Dev: KK ; 2026-03-10-12
 # -----------------------------------
 # Bugs:
-# - Elapsed time sometimes is incorrect
+# - Elapsed play-time is estimated
 # - Optimize: Code Cleanup
 # - Optimize: Clear-Host calls
 # - Optimize: Info Dialog
@@ -22,18 +22,19 @@ $MPDHost = "CHANGE_ME"
 $MPDPort = 6600
 
 #
-# Color Config
+# Color Config  #DEF_COLOR
 #
-$ColorDashBack          = "Black";
-$ColorPlaylistFore      = "DarkYellow";
-$ColorRandomFore        = "DarkGray";
-$ColorHeaderBack        = "DarkBlue";
-$ColorNowPlaying        = "DarkGreen";
+$ColorDashBack          = "Black"
+$ColorHeaderBack        = "DarkBlue"
+$ColorStatusBack        = "Gray"
+$ColorStatusFore        = "DarkGreen"
+$ColorPlaylistFore      = "DarkYellow"
+$ColorNowPlaying        = "DarkGreen"
 
 #
-# File Info
+# Info Panel
 #
-$ShowFileInfo = $false;
+$ShowInfoPanel = $false;
 
 #
 # Log Config
@@ -45,12 +46,35 @@ $ShowLog = $false;
 $Global:ColorIndex = 0
 
 
-function Show-Info($text) {
-    Write-Host $text -ForegroundColor White -BackgroundColor Blue
-}
 
 function Quote-MPD($text) {
     return '"' + $text.Replace('"', '\"') + '"'
+}
+
+function Write-Info($text) {
+    Write-Host "  $text  "    -ForegroundColor White  -BackgroundColor Blue
+}
+
+function Write-Error($text) {
+    $len = $text.Length + 10
+    Write-Block $len  DarkRed
+    Write-Text "  $text  "  Yellow Red $len
+    Write-Block $len  DarkRed
+}
+
+function Write-Text($text, $foreColor, $backColor, $width) {
+    $t = $text.PadRight($width)
+    Write-Host $t    -ForegroundColor $foreColor  -BackgroundColor $backColor
+}
+
+function Write-Block {
+    param(
+        [int]$Width,
+        [ConsoleColor]$ColorBack
+    )
+
+    $text = " ".PadRight($Width)
+    Write-Host $text -BackgroundColor $ColorBack
 }
 
 function Get-NextColor {
@@ -63,7 +87,7 @@ function Get-NextColor {
 
     # Move to next index (wrap around)
     $Global:ColorIndex = ($Global:ColorIndex + 1) % $colors.Count
-    Show-Info " Using color: $color "
+    Write-Info "Using color: $color"
     return $color
 }
 
@@ -75,9 +99,7 @@ function Format-Time($sec) {
 }
 
 function Wait-WithKeyCheck {
-    param(
-        [int]$CycleCount = 10
-    )
+    param( [int]$CycleCount = 10 )
 
     $elapsed = 0
     while ($elapsed -lt $CycleCount) {
@@ -86,7 +108,7 @@ function Wait-WithKeyCheck {
             break
         }
 
-        Start-Sleep -Milliseconds 800
+        Start-Sleep -Milliseconds 500
         $elapsed++
     } # while
 
@@ -122,17 +144,16 @@ function Send-MPDCommand {
         $client.Close()
 
         if ($ShowLog) {
-            Write-Host " Request: " -ForegroundColor DarkBlue -NoNewline
-            Write-Host "$Command" -ForegroundColor Blue
-            Write-Host " Response: " -ForegroundColor DarkGreen -NoNewline
-            Write-Host " $response `n" -ForegroundColor DarkYellow
-        #    [Console]::ReadKey($true) | Out-Null
+            Write-Host " Request  : "       -ForegroundColor DarkGreen  -NoNewline
+            Write-Host "$Command"           -ForegroundColor DarkYellow
+            Write-Host " Response : "       -ForegroundColor DarkGreen  -NoNewline
+            Write-Host " $response `n"      -ForegroundColor DarkYellow
         }
 
         return $response
     }
     catch {
-        Write-Host  "`n  ERROR: Cannot reach MPD server at $MPDHost`:$MPDPort  `n" -ForegroundColor Red
+        Write-Error "ERROR: Cannot reach MPD server at $MPDHost`:$MPDPort"
         return "";
     }
 
@@ -144,6 +165,7 @@ function Show-MpdServerInfo {
 
     # Get MPD status and stats
     $stats  = Send-MPDCommand "stats"
+    $outputs  = Send-MPDCommand "outputs"
 
     # Extract stats
     $uptimeSec     = (($stats | Where-Object { $_ -like "uptime:*" })     -replace "uptime:", "").Trim()
@@ -161,13 +183,11 @@ function Show-MpdServerInfo {
     $dbTS = [TimeSpan]::FromSeconds([int]$dbPlaytimeSec)
     $dbFmt = "{0}h {1}m" -f $dbTS.Hours, $dbTS.Minutes
 
-    Write-Host " Host        : $MPDHost"     -ForegroundColor DarkYellow
-    Write-Host " Port        : $MPDPort"     -ForegroundColor DarkYellow
-    Write-Host " Uptime      : $uptimeFmt"   -ForegroundColor DarkYellow
+    Write-Host " Host        : $MPDHost"     -ForegroundColor DarkCyan
+    Write-Host " Port        : $MPDPort"     -ForegroundColor DarkCyan
+    Write-Host " Uptime      : $uptimeFmt"   -ForegroundColor DarkCyan
 
-    Write-Host ""
-    Write-Host "                  Database                  " -ForegroundColor Black -BackgroundColor DarkYellow
-    Write-Host ""
+    Write-Host "`n                  Database                  `n" -ForegroundColor Gray -BackgroundColor DarkYellow
     Write-Host " Artists     : $artists"      -ForegroundColor DarkYellow
     Write-Host " Albums      : $albums"       -ForegroundColor DarkYellow
     Write-Host " Songs       : $songs"        -ForegroundColor DarkYellow
@@ -176,18 +196,51 @@ function Show-MpdServerInfo {
 
     $tmp = [DateTimeOffset]::FromUnixTimeSeconds($dbUpdate).ToLocalTime()
     $tmp = $tmp.ToString('yyyy MMM dd  -  HH:mm')
-    Write-Host " Last Update : $tmp"        -ForegroundColor DarkYellow
+    Write-Host " Last Update : $tmp"                            -ForegroundColor DarkYellow
 
-    Write-Host "`n                                            " -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
+    Write-Host "`n                  Outputs                   `n" -ForegroundColor Gray -BackgroundColor DarkGreen
+
+    foreach ($line in $outputs) {
+        if ($line -like "outputid:*") {
+            $tmp = $line.Substring(9).Trim()
+            Write-Host "`n Output ID   : $tmp"        -ForegroundColor DarkGreen
+        }
+        if ($line -like "outputname:*") {
+            $tmp = $line.Substring(11).Trim()
+            Write-Host " Output Name : $tmp"        -ForegroundColor DarkGreen
+        }
+
+        if ($line -like "plugin:*") {
+            $tmp = $line.Substring(7).Trim()
+            Write-Host " Plugin      : $tmp"        -ForegroundColor DarkGreen
+        }
+
+        if ($line -like "outputenabled:*") {
+            $tmp = $line.Substring(14).Trim()
+            $enab= "No"
+            if ($tmp -eq "1") { $enab= "Yes" }
+            Write-Host " Enabled     : $enab"        -ForegroundColor DarkGreen
+        }
+
+        if ($line -like "Album:*")          { $album        = $line.Substring(6).Trim() }
+        if ($line -like "AlbumArtist:*")    { $albumArtist  = $line.Substring(12).Trim() }
+        if ($line -like "date:*")           { $albumDate    = $line.Substring(6).Trim() }
+        if ($line -like "Title:*")          { $trackTitle   = $line.Substring(6).Trim() }
+        if ($line -like "Genre:*")          { $trackGenre   = $line.Substring(6).Trim() }
+        if ($line -like "file:*")           { $trackFile    =   $line.Substring(6).Trim() }
+    }
+
+
+    #Write-Host "`n                                            " -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
 
     [Console]::ReadKey($true) | Out-Null
     Clear-Host
 }
 
 function Show-NoPlaylist{
-    Write-Host "                                        "  -BackgroundColor Red
-    Write-Host "   >>  No playlist is being played <<   "  -BackgroundColor DarkRed  -ForegroundColor Yellow
-    Write-Host "                                        "  -BackgroundColor Red
+    Write-Host "                                        "                           -BackgroundColor Red
+    Write-Host "   >>  No playlist is being played <<   "  -ForegroundColor Yellow  -BackgroundColor DarkRed
+    Write-Host "                                        "                           -BackgroundColor Red
 }
 
 function Show-PlaylistHeader {
@@ -197,9 +250,9 @@ function Show-PlaylistHeader {
     )
 
     Clear-Host
-    Write-Host "     Playlist Content  -  "   -NoNewline -ForegroundColor Gray -BackgroundColor DarkBlue
-    Write-Host " $PlaylistName  "             -NoNewline -ForegroundColor DarkYellow -BackgroundColor DarkBlue
-    Write-Host " ($SongCount songs)    `n"    -ForegroundColor Yellow -BackgroundColor DarkBlue
+    Write-Host "     Playlist Content  -  "   -NoNewline -ForegroundColor Gray          -BackgroundColor DarkBlue
+    Write-Host " $PlaylistName  "             -NoNewline -ForegroundColor DarkYellow    -BackgroundColor DarkBlue
+    Write-Host " ($SongCount songs)    `n"               -ForegroundColor Yellow        -BackgroundColor DarkBlue
 
 }
 
@@ -218,13 +271,13 @@ function Get-Playlists {
 
 function Show-PlaylistContent($playlistName) {
     Clear-Host
-    Show-Info " Fetching playlist data for   $playlistName      "
+    Write-Info "Fetching playlist data: $playlistName"
 
     $quoted = Quote-MPD $playlistName
     $resp = Send-MPDCommand "listplaylistinfo $quoted"
 
     if ($resp.Count -eq 0) {
-        Write-Host "Playlist is empty." -ForegroundColor Yellow
+        Write-Info "Playlist is empty"
         return;
     }
     $songCount = ($resp | Where-Object { $_ -like "file:*" }).Count
@@ -284,7 +337,7 @@ function Show-PlaylistsMenu {
     }
 
     if ($playlists.Count -eq 0) {
-            Write-Host "`n                                  " -ForegroundColor Black -BackgroundColor  DarkYellow
+            Write-Host "`n                                " -ForegroundColor Black -BackgroundColor  DarkYellow
             Write-Host "    >> No playlists found   <<    " -ForegroundColor Black -BackgroundColor Yellow
             Write-Host "                                  " -ForegroundColor Black -BackgroundColor DarkYellow
             [Console]::ReadKey($true) | Out-Null
@@ -304,7 +357,7 @@ function Show-PlaylistsMenu {
     Write-Host "`nEnter number to load playlist, or +number to view playlist contents or ENTER to return`n" -ForegroundColor DarkYellow
     $choice = Read-Host "A"
 
-    # Check for + prefix
+    # Check for `+` prefix
     if ($choice.StartsWith("+")) {
         $num = $choice.Substring(1)
         if ($num -as [int]) {
@@ -316,24 +369,23 @@ function Show-PlaylistsMenu {
         return
     }
 
-    # load plalist
     if (-not ($choice -as [int])) {
         Clear-Host
         return
     }
 
     $index = [int]$choice - 1
+    if ($index -lt 0 -or $index -ge $playlists.Count) {
+        return
+    }
 
-    if ($index -lt 0 -or $index -ge $playlists.Count) { return }
-
-    $selected = $playlists[$index]
-    Write-Host "`nSelected playlist: $selected"
-
-    $quoted = Quote-MPD $selected
+    # load playlist
+    $selected = Quote-MPD $playlists[$index]
+#    $quoted = Quote-MPD $selected
 
     # Load playlist
     Send-MPDCommand "clear"
-    Send-MPDCommand "load $quoted"
+    Send-MPDCommand "load $selected"
     Send-MPDCommand "play"
 
     Clear-Host
@@ -365,35 +417,71 @@ function Run-Dashboard {
 
     while ($true) {
 
-        # Handle keypresses without blocking
+        # Handle key-press without blocking
        if ([Console]::KeyAvailable) {
             $keyChar = [Console]::ReadKey($true).KeyChar.ToString().ToLower()
 
-            switch ($keyChar) {
+            switch ($keyChar) { #KEYS
+
+                " " {
+                        if ($playingState) {
+                            Send-MPDCommand "stop"
+                        } else {
+                            Send-MPDCommand "play"
+                        }
+                    }
+
+                "*" {
+                        Send-MPDCommand "pause"  # toggle pause
+                    }
+
+                "+" {   # Vol+
+                        Send-MPDCommand "volume +5"
+                    }
+
+                "-" {   # Vol-
+                        Send-MPDCommand "volume -5"
+                    }
+
+                "[" {   # Mute -> volume 0
+                        Send-MPDCommand "setvol 0"
+                    }
+
+                "]" {   # UnMute -> volume 95
+                        Send-MPDCommand "setvol 95"
+                    }
 
                 "a" {
                         # Create playlist with all songs
-                            Show-Info " Sending: clear (playlist) "
+                            Write-Info "Sending MPD Command: clear (playlist)"
                         Send-MPDCommand "clear"
-                            Show-Info " Sending: add / (playlist) "
+                            Write-Info "Sending MPD Command: add / (playlist)"
                         Send-MPDCommand "add /"
-                            Show-Info " Sending: play (playlist) "
+                            Write-Info "Sending MPD Command: play  (playlist)"
                         Send-MPDCommand "play"
                     }
 
                 "c" {
-                        Send-MPDCommand "clear"
+                        if ($consumeMode -eq "ON") {
+                            Send-MPDCommand "consume 0"
+                        } else {
+                            Send-MPDCommand "consume 1"
+                        }
                     }
+
 
                 "d" {   # DEBUG
                         $ShowLog = $true;
                     }
 
-                "i" {   # File Info
-                        if ($ShowFileInfo)
-                            { $ShowFileInfo = $false }
-                        else
-                            { $ShowFileInfo = $true }
+                "f" {   # Fast-Forward
+                        if ($playingState) {
+                            Send-MPDCommand "seekcur +5"
+                        }
+                    }
+
+                "i" {
+                        $ShowInfoPanel = -not $ShowInfoPanel
                     }
 
 
@@ -403,7 +491,6 @@ function Run-Dashboard {
 
                 "n" {
                         if ($playingState) {
-                            # Show-Info "Sending: next"
                             Send-MPDCommand "next"
                         } else {
                             Show-NoPlaylist
@@ -427,12 +514,8 @@ function Run-Dashboard {
                         }
                     }
 
-                "s" {
-                        if ($playingState) {
-                            Send-MPDCommand "stop"
-                        } else {
-                            Send-MPDCommand "play"
-                        }
+                "x" {
+                        Send-MPDCommand "clear"     # clear queue
                     }
 
                 "v" {
@@ -442,7 +525,7 @@ function Run-Dashboard {
                 "w" {
                         Send-MPDCommand "stop"
                         Clear-Host
-                        Show-Info "`n  Playback stopped  `n"
+                        Write-Info "Playback stopped ... "
                         return
                     }
 
@@ -464,20 +547,25 @@ function Run-Dashboard {
                     }
 
                 "4" {
-                        $ColorRandomFore = (Get-NextColor)
+                        $ColorStatusBack = (Get-NextColor)
                     }
 
                 "5" {
+                        $ColorStatusFore = (Get-NextColor)
+                    }
+
+                "6" {
                         $ColorDashBack = (Get-NextColor)
                     }
 
 
-                "9" {
-                        $ColorDashBack          = "Black";
-                        $ColorPlaylistFore      = "DarkYellow";
-                        $ColorRandomFore        = "DarkGray";
-                        $ColorHeaderBack        = "DarkBlue";
-                        $ColorNowPlaying        = "DarkGreen";
+                "9" {   #DEF_COLOR
+                        $ColorDashBack          = "Black"
+                        $ColorHeaderBack        = "DarkBlue"
+                        $ColorStatusBack        = "Gray"
+                        $ColorStatusFore        = "DarkGreen"
+                        $ColorPlaylistFore      = "DarkYellow"
+                        $ColorNowPlaying        = "DarkGreen"
                     }
 
             } # switch
@@ -503,8 +591,12 @@ function Run-Dashboard {
             if ($line -like "file:*")           { $trackFile    =   $line.Substring(6).Trim() }
         }
 
-        $randomMode = "<unknown>"
-        $playlistIndex = "<none>"
+        $error      = ""
+        $randomMode    = "<unknown>"
+        $consumeMode   = "<unknown>"
+        $volume        = "<unknown>"
+        $volumeMuted   = $false
+#        $playlistIndex = "<none>"
         $playlistLength = ""
         $playlistName = "<none>"
         $playingState = $false;
@@ -515,22 +607,42 @@ function Run-Dashboard {
         # Status + playlist
         $statusResp = Send-MPDCommand "status"
         foreach ($line in $statusResp) {
-            if ($line -contains "state: play") {
-                $playingState = $true
+
+            if ($line -like "state:*") {
+                $playingStateTxt = $line.Substring(6).Trim()
+                if ($playingStateTxt -eq "play") {
+                    $playingState    = $true
+                }
             }
+
+            if ($line -like "error:*") {
+                $error = $line.Substring(6).Trim()
+                Write-Error $error
+            }
+
             if ($line -like "random:*") {
                 $randomMode = if ($line.Substring(7).Trim() -eq "1") { "ON" } else { "OFF" }
             }
-            if ($line -like "playlist:*") {
-                $playlistIndex = $line.Substring(9).Trim()
+
+            if ($line -like "consume:*") {
+                $consumeMode = if ($line.Substring(8).Trim() -eq "1") { "ON" } else { "OFF" }
             }
+
             if ($line -like "playlistlength:*") {
                 $playlistLength = $line.Substring(15).Trim()
+            }
+
+            if ($line -like "volume:*") {
+                $volume = $line.Substring(7).Trim()
+                if ($volume -eq "0") {
+                    $volumeMuted = $true
+                }
             }
 
             if ($line -like "elapsed:*") {
                 $trackElapsed = [int]([double]($line.Substring(8).Trim()))
             }
+
             if ($line -like "duration:*") {
                 $trackTotal = [int]([double]($line.Substring(9).Trim()))
             }
@@ -557,67 +669,92 @@ function Run-Dashboard {
         } else {
             $elapsedStr     = ""
             $trackTotalStr  = ""
-            $playDisplay1   = "<none>"
-            $playDisplay2   = ""
+            $playDisplay1   = "<nothing is played>"
+            $playDisplay2   = "<nothing is played>"
+            $artist         = ""
+            $album          = ""
+            $albumArtist    = ""
+            $albumDate      = ""
+            $trackTitle     = ""
+            $trackGenre     = ""
+            $trackFile      = ""
         }
 
         # Build dashboard lines
         $updateTime = (Get-Date -Format 'yyyy MMMM dd  |  HH:mm:ss')
         $lineHead   = "  MPD BareControl (PS) v.1                  ($MPDHost`:$MPDPort)                            $updateTime "
 
-        $linePlay1      = "   Artist/Title    : $playDisplay1"
-        $linePlay2      = "   Album           : $playDisplay2"
-        $lineRand       = "   Random Mode     : $randomMode "
-        $linePlayName   = "   Playlist Name   : $playlistName"
-        $linePlayLenght = "   Playlist Length : $playlistLength"
+        #KEYS
+        $s = $([char]26)    # right arrow
+        $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause  | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
+        $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
+        $lineKeys3  = "  I  $s Info Panel   |   V   $s MPD Info       |            | 1-6 $s Colors  |  9  $s Def-col. | D $s Debug log  "
 
-        $lineKeys1  = " (S)tart/Stop playing | (N)ext song | (P)rev. song |  (L)oad playlist | (C)lear playlist | Play (a)ll |  (R)andom On/Off"
-        $lineKeys2  = " (I)nfo Panel         |                                                                               |  (V) MPD Server Info"
-        $lineKeys3  = " (Q)uit               | (W) Stop play and quit     |  (1-5) Colors    | (9) Default colors            |  (D)ebug log"
+        $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length, $lineKeys3.Length | Measure-Object -Maximum).Maximum + 1
 
-        $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length | Measure-Object -Maximum).Maximum + 1
+        #
+        # Header
+        #
+        Write-Host ("" + $lineHead.PadRight($width) + "")                           -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
 
-        Write-Host  ""
-        Write-Host ("" + $lineHead.PadRight($width) + "")       -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
+        #
+        # Playlist
+        #
+        Write-Block $width $ColorDashBack
+        Write-Text "   Artist/Title    : $playDisplay1"     $ColorNowPlaying    $ColorDashBack  $width
+        Write-Text "   Album           : $playDisplay2"     $ColorNowPlaying    $ColorDashBack  $width
+        Write-Block $width $ColorDashBack
+        Write-Text "   Playlist Name   : $playlistName"     $ColorPlaylistFore  $ColorDashBack  $width
 
-        Write-Host  " ".PadRight($width)                                                              -BackgroundColor $ColorDashBack
-        Write-Host $linePlay1.PadRight($width)            -ForegroundColor $ColorNowPlaying            -BackgroundColor $ColorDashBack
-        Write-Host $linePlay2.PadRight($width)            -ForegroundColor $ColorNowPlaying            -BackgroundColor $ColorDashBack
 
-        Write-Host  " ".PadRight($width)                                                          -BackgroundColor $ColorDashBack
-        Write-Host $linePlayName.PadRight($width)        -ForegroundColor $ColorPlaylistFore      -BackgroundColor $ColorDashBack
-        Write-Host $linePlayLenght.PadRight($width)      -ForegroundColor $ColorPlaylistFore      -BackgroundColor $ColorDashBack
+        #
+        # Control Keys Display
+        #
+        Write-Block $width $ColorDashBack
+        Write-Text  $lineKeys1              Gray   $ColorHeaderBack  $width
+        Write-Text  $lineKeys2              Gray   $ColorHeaderBack  $width
+        Write-Text  $lineKeys3              Gray   $ColorHeaderBack  $width
 
-        Write-Host  " ".PadRight($width)                                                        -BackgroundColor $ColorDashBack
-        Write-Host $lineRand.PadRight($width)           -ForegroundColor $ColorRandomFore       -BackgroundColor $ColorDashBack
+        #
+        # Play state
+        #
+#        Write-Block $width $ColorDashBack
+        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt "  $ColorStatusBack $ColorStatusFore $width
+        if ($volumeMuted) {
+            Write-Info "Volume MUTED    "
+        }
 
-        Write-Host  " ".PadRight($width)                                                          -BackgroundColor $ColorDashBack
-        Write-Host ( $lineKeys1.PadRight($width) )                    -ForegroundColor Gray       -BackgroundColor $ColorHeaderBack
-        Write-Host ( $lineKeys2.PadRight($width) )                    -ForegroundColor Gray       -BackgroundColor $ColorHeaderBack
-        Write-Host ( $lineKeys3.PadRight($width) )                    -ForegroundColor Gray       -BackgroundColor $ColorHeaderBack
+        #
+        # Info Panel
+        #
+        if ($ShowInfoPanel) {
+            Write-Block $width $ColorDashBack
+            Write-Text "    >> Artist      : $artist"       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "    >> Album       : $album"        $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "    >> AlbumArtist : $albumArtist"  $ColorNowPlaying    $ColorDashBack      $width
 
-        if ($ShowFileInfo) {
-            Write-Host " ".PadRight($width)                       -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
+            Write-Block $width $ColorDashBack
+            Write-Text "    >> Date        : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "    >> Title       : $trackTitle "       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "    >> Duration    : $trackTotalStr"     $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "    >> Genre       : $trackGenre "       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "    >> Bitrate     : $trackBitrate kbps" $ColorNowPlaying    $ColorDashBack      $width
 
-            Write-Host ( "    >> Artist      : $artist".PadRight($width) )              -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> Album       : $album".PadRight($width) )               -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> AlbumArtist : $albumArtist".PadRight($width) )         -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> Date        : $albumDate ".PadRight($width) )          -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> Title       : $trackTitle ".PadRight($width) )         -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> Duration    : $trackTotalStr".PadRight($width) )       -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> Genre       : $trackGenre ".PadRight($width) )         -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host ( "    >> Bitrate     : $trackBitrate kbps".PadRight($width) )   -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
             $tmp = $trackFile.Substring(0, [Math]::Min($trackFile.Length, $width-22))
-            Write-Host ( "    >> Path        : $tmp".PadRight($width) )                -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
-            Write-Host " ".PadRight($width)                       -ForegroundColor $ColorNowPlaying  -BackgroundColor $ColorDashBack
+            Write-Text "    >> Path        : $tmp"               $ColorNowPlaying    $ColorDashBack      $width
 
-            Write-Host " ".PadRight($width)                       -ForegroundColor Gray       -BackgroundColor $ColorHeaderBack
+            Write-Block $width $ColorDashBack
+            Write-Text "    >> Queue Size  : $playlistLength"    $ColorNowPlaying    $ColorDashBack      $width
+
+            Write-Block $width $ColorDashBack
+
+            Write-Block $width $ColorHeaderBack
         }
 
         if ($playlistLength -eq "0") {
-            Write-Host " ".PadRight($width) -ForegroundColor Black                          -BackgroundColor DarkYellow
-            Write-Host "                                   >> No songs in playlist <<".PadRight($width)      -ForegroundColor Black -BackgroundColor Yellow
-            Write-Host " ".PadRight($width) -ForegroundColor Black                          -BackgroundColor DarkYellow
+            Write-Block $width  DarkYellow
+            Write-Text "    >> No tracks in playlist << "    Black Yellow $width
+            Write-Block $width  DarkYellow
         }
 
         Wait-WithKeyCheck
@@ -627,14 +764,21 @@ function Run-Dashboard {
 }
 
 
-####### START #########
+    ####### START #########
 
     Clear-Host
 
+    if ($args.Count -lt 1) {
+        Write-Host  "`n  ERROR: MPD server address not specified as argument.  `n" -ForegroundColor Red
+        exit 1
+    }
+
+    $MPDHost = $args[0]
     if (-not (Test-MPDConnection)) {
         Write-Host  "`n  ERROR: Cannot reach MPD server at $MPDHost`:$MPDPort  `n" -ForegroundColor Red
-        exit
+        exit 2
     }
 
     Run-Dashboard
 
+    ####### END  #########
