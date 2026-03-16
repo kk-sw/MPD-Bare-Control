@@ -1,4 +1,4 @@
-# 316261045
+# 1206316
 # -----------------------------------
 #
 # MPD BareControl (PS)
@@ -14,6 +14,11 @@
 # - Optimize: Debug Dialog
 #
 # -----------------------------------
+
+#
+# Keyboard polling Config
+#
+$WaitWithKeyCheckSleepMs = 500
 
 #
 # MPD Host Config
@@ -108,7 +113,7 @@ function Wait-WithKeyCheck {
             break
         }
 
-        Start-Sleep -Milliseconds 500
+        Start-Sleep -Milliseconds $WaitWithKeyCheckSleepMs
         $elapsed++
     } # while
 
@@ -721,7 +726,11 @@ function Run-Dashboard {
 #        Write-Block $width $ColorDashBack
         Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt "  $ColorStatusBack $ColorStatusFore $width
         if ($volumeMuted) {
-            Write-Info "Volume MUTED    "
+            #Write-Text "Volume MUTED    "  $ColorStatusBack $ColorStatusFore 20
+            Write-Info "  Muted         "
+        }
+        if ($playingStateTxt -eq "pause") {
+            Write-Info "  Paused        "
         }
 
         #
