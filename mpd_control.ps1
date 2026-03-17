@@ -1,10 +1,10 @@
-# 0015
+# 0021
 # -----------------------------------
 #
 # MPD BareControl (PS)
 #
 # -----------------------------------
-# Dev: KK ; 2026 march 
+# Dev: KK ; 2026 march
 # -----------------------------------
 # Bugs:
 # - Elapsed play-time is estimated
@@ -33,7 +33,7 @@ $ColorDashBack          = "Black"
 $ColorHeaderBack        = "DarkBlue"
 $ColorStatusBack        = "DarkGreen"
 $ColorStatusFore        = "White"
-$ColorPlaylistFore      = "DarkYellow"
+$ColorPlaylistFore      = "DarkCyan"
 $ColorNowPlaying        = "DarkGreen"
 
 #
@@ -151,7 +151,7 @@ function Send-MPDCommand {
             Write-Host " Request  : "       -ForegroundColor DarkGreen  -NoNewline
             Write-Host "$Command"           -ForegroundColor DarkYellow
             Write-Host " Response : "       -ForegroundColor DarkGreen  -NoNewline
-            Write-Host " $response `n"      -ForegroundColor DarkYellow
+            Write-Host "$response `n"      -ForegroundColor DarkYellow
         }
 
         return $response
@@ -183,9 +183,9 @@ function Show-MpdServerInfo {
     $uptimeTS = [TimeSpan]::FromSeconds([int]$uptimeSec)
     $uptimeFmt = "{0}h {1}m {2}s" -f $uptimeTS.Hours, $uptimeTS.Minutes, $uptimeTS.Seconds
 
-    # Convert DB playtime to H:M:S
+    # Convert DB playtime
     $dbTS = [TimeSpan]::FromSeconds([int]$dbPlaytimeSec)
-    $dbFmt = "{0}h {1}m" -f $dbTS.Hours, $dbTS.Minutes
+    $dbFmt = "{0}d {1}h {2}m" -f  $dbTS.Days, $dbTS.Hours, $dbTS.Minutes
 
     Write-Host " Host        : $MPDHost"     -ForegroundColor DarkCyan
     Write-Host " Port        : $MPDPort"     -ForegroundColor DarkCyan
@@ -311,7 +311,7 @@ function Show-PlaylistContent($playlistName) {
         if ($i + $chunkSize -lt $buffer.Count) {
             $preCnt = $cnt
             $cnt = ($i + $chunkSize)/2
-            Write-Host "`n          SPACE to continue; q to return ($preCnt-$cnt)                  " -ForegroundColor Yellow -BackgroundColor DarkBlue
+            Write-Host "`n          SPACE to continue; Q to return ($preCnt-$cnt)                  " -ForegroundColor Yellow -BackgroundColor DarkBlue
             $keyChar = [Console]::ReadKey($true).KeyChar.ToString().ToLower()
             Show-PlaylistHeader $playlistName $songCount
             if ($keyChar -eq "q") {
@@ -564,12 +564,21 @@ function Run-Dashboard {
                     }
 
 
+                "8" {   # Theme
+                        $ColorDashBack          = "Gray"
+                        $ColorHeaderBack        = "DarkGray"
+                        $ColorStatusBack        = "DarkGray"
+                        $ColorStatusFore        = "White"
+                        $ColorPlaylistFore      = "DarkGray"
+                        $ColorNowPlaying        = "Black"
+                    }
+
                 "9" {   #DEF_COLOR
                         $ColorDashBack          = "Black"
                         $ColorHeaderBack        = "DarkBlue"
                         $ColorStatusBack        = "DarkGreen"
                         $ColorStatusFore        = "White"
-                        $ColorPlaylistFore      = "DarkYellow"
+                        $ColorPlaylistFore      = "DarkCyan"
                         $ColorNowPlaying        = "DarkGreen"
                     }
 
@@ -666,14 +675,16 @@ function Run-Dashboard {
         }
 
         if ($playingState) {
-            $elapsedStr     = Format-Time $trackElapsed
-            $trackTotalStr  = Format-Time $trackTotal
-            $playDisplay1  = "$artist - $trackTitle              | ~$elapsedStr / $trackTotalStr"
+            $elapsedStr    = Format-Time $trackElapsed
+            $trackTotalStr = Format-Time $trackTotal
+            $trackPlayStr  = "~$elapsedStr / $trackTotalStr"
+            $playDisplay1  = "$artist - $trackTitle"
             $playDisplay2  = "$album ($albumDate)"
 
         } else {
             $elapsedStr     = ""
             $trackTotalStr  = ""
+            $trackPlayStr   = ""
             $playDisplay1   = "<nothing is played>"
             $playDisplay2   = "<nothing is played>"
             $artist         = ""
@@ -687,13 +698,13 @@ function Run-Dashboard {
 
         # Build dashboard lines
         $updateTime = (Get-Date -Format 'yyyy MMMM dd  |  HH:mm:ss')
-        $lineHead   = "  MPD BareControl (PS) v.1                  ($MPDHost`:$MPDPort)                            $updateTime "
+        $lineHead   = "  MPD BareControl (PS) v.1                ($MPDHost`:$MPDPort)                       $updateTime "
 
         # Control KEYS  #KEYS
-        $s = [char]0x2192     # right arrow 
+        $s = [char]0x2192     # right arrow
         $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause  | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
         $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
-        $lineKeys3  = "  I  $s Info Panel   |   V   $s MPD Info       |            | 1-6 $s Colors  |  9  $s Def-col. | D $s Debug log  "
+        $lineKeys3  = "  I  $s Info Panel   |   V   $s MPD Info       |            | 1-6 $s Colors  | 8-9 $s Theme    | D $s Debug Log  "
 
         # panel size
         $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length, $lineKeys3.Length | Measure-Object -Maximum).Maximum + 1
@@ -707,10 +718,10 @@ function Run-Dashboard {
         # Playlist
         #
         Write-Block $width $ColorDashBack
-        Write-Text "   Artist/Title    : $playDisplay1"     $ColorNowPlaying    $ColorDashBack  $width
-        Write-Text "   Album           : $playDisplay2"     $ColorNowPlaying    $ColorDashBack  $width
+        Write-Text "   Artist/Title  : $playDisplay1"     $ColorNowPlaying    $ColorDashBack  $width
+        Write-Text "   Album         : $playDisplay2"     $ColorNowPlaying    $ColorDashBack  $width
         Write-Block $width $ColorDashBack
-        Write-Text "   Playlist Name   : $playlistName"     $ColorPlaylistFore  $ColorDashBack  $width
+        Write-Text "   Playlist Name : $playlistName"     $ColorPlaylistFore  $ColorDashBack  $width
 
 
         #
@@ -724,7 +735,7 @@ function Run-Dashboard {
         #
         # Play state
         #
-        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt "  $ColorStatusFore $ColorStatusBack $width
+        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                  State: $playingStateTxt    |     $trackPlayStr"  $ColorStatusFore $ColorStatusBack $width
         if ($volumeMuted) {
             Write-Info "Muted         "
         }
@@ -737,22 +748,22 @@ function Run-Dashboard {
         #
         if ($ShowInfoPanel) {
             Write-Block $width $ColorDashBack
-            Write-Text "   Artist      : $artist"       $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "   Album       : $album"        $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "   AlbumArtist : $albumArtist"  $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Artist        : $artist"       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Album         : $album"        $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   AlbumArtist   : $albumArtist"  $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
-            Write-Text "   Date        : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "   Title       : $trackTitle "       $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "   Duration    : $trackTotalStr"     $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "   Genre       : $trackGenre "       $ColorNowPlaying    $ColorDashBack      $width
-            Write-Text "   Bitrate     : $trackBitrate kbps" $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Date          : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Title         : $trackTitle "       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Duration      : $trackTotalStr"     $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Genre         : $trackGenre "       $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Bitrate       : $trackBitrate kbps" $ColorNowPlaying    $ColorDashBack      $width
 
             $tmp = $trackFile.Substring(0, [Math]::Min($trackFile.Length, $width-22))
-            Write-Text "   Path        : $tmp"               $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Path          : $tmp"               $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
-            Write-Text "   Queue Size  : $playlistLength"    $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Queue Size    : $playlistLength"    $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
 
