@@ -1,4 +1,4 @@
-# 0021
+# 0022
 # -----------------------------------
 #
 # MPD BareControl (PS)
@@ -751,9 +751,9 @@ function Run-Dashboard {
             Write-Text "   Artist        : $artist"       $ColorNowPlaying    $ColorDashBack      $width
             Write-Text "   Album         : $album"        $ColorNowPlaying    $ColorDashBack      $width
             Write-Text "   AlbumArtist   : $albumArtist"  $ColorNowPlaying    $ColorDashBack      $width
+            Write-Text "   Date          : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
 
             Write-Block $width $ColorDashBack
-            Write-Text "   Date          : $albumDate "        $ColorNowPlaying    $ColorDashBack      $width
             Write-Text "   Title         : $trackTitle "       $ColorNowPlaying    $ColorDashBack      $width
             Write-Text "   Duration      : $trackTotalStr"     $ColorNowPlaying    $ColorDashBack      $width
             Write-Text "   Genre         : $trackGenre "       $ColorNowPlaying    $ColorDashBack      $width
