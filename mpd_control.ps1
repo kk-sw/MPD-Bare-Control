@@ -1,4 +1,4 @@
-# 0022
+# 0024
 # -----------------------------------
 #
 # MPD BareControl (PS)
@@ -49,6 +49,40 @@ $ShowLog = $false;
 # Global index to track sequence position
 $Global:ColorIndex = 0
 
+
+class StringQueue {
+    [int]   $MaxSize = 20
+    [System.Collections.ArrayList] $Items
+
+    StringQueue() {
+        $this.Items = [System.Collections.ArrayList]::new()
+    }
+
+    [void] Add([string]$value) {
+
+        if ([string]::IsNullOrWhiteSpace($value) -or
+            ($this.Items -contains $value)
+        ) {
+            return
+        }
+        
+        # Drop oldest if full
+        if ($this.Items.Count -ge $this.MaxSize) {
+            $this.Items.RemoveAt(0)
+        }
+
+        # Add new item
+        $null = $this.Items.Add($value)
+    }
+
+    [void] Delete([string]$value) {
+        $this.Items.Remove($value) | Out-Null
+    }
+
+    [string[]] GetAll() {
+        return $this.Items.ToArray()
+    }
+}
 
 
 function Quote-MPD($text) {
@@ -163,6 +197,26 @@ function Send-MPDCommand {
 
 }
 
+function Show-History {
+    param([string[]] $List)
+    Clear-Host
+    Write-Host "                    Last songs played                    `n"     -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
+    Write-Host "Oldest -> Newest`n"
+
+    for ($i = 0; $i -lt $List.Count; $i++) {
+        $color = if ($i % 2 -eq 0) { 
+            $ColorPlaylistFore 
+        } else { 
+            $ColorStatusFore 
+        }
+        Write-Host (" $($i+1): $($List[$i])") -ForegroundColor $color
+    }    
+    
+    Write-Host "`n(press any key to return)`n"
+    [Console]::ReadKey($true) | Out-Null
+    Clear-Host
+}
+
 function Show-MpdServerInfo {
     Clear-Host
     Write-Host "               MPD Server Info              `n"         -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
@@ -235,8 +289,7 @@ function Show-MpdServerInfo {
     }
 
 
-    #Write-Host "`n                                            " -ForegroundColor Gray -BackgroundColor $ColorHeaderBack
-
+    Write-Host "`n(press any key to return)`n"
     [Console]::ReadKey($true) | Out-Null
     Clear-Host
 }
@@ -418,6 +471,7 @@ function Test-MPDConnection {
 }
 
 function Run-Dashboard {
+    $history = [StringQueue]::new()
 
     while ($true) {
 
@@ -483,6 +537,10 @@ function Run-Dashboard {
                         if ($playingState) {
                             Send-MPDCommand "seekcur +10"
                         }
+                    }
+
+                "h" {
+                        Show-History $history.GetAll()
                     }
 
                 "i" {
@@ -680,7 +738,7 @@ function Run-Dashboard {
             $trackPlayStr  = "~$elapsedStr / $trackTotalStr"
             $playDisplay1  = "$artist - $trackTitle"
             $playDisplay2  = "$album ($albumDate)"
-
+            $history.Add($playDisplay1)
         } else {
             $elapsedStr     = ""
             $trackTotalStr  = ""
@@ -702,9 +760,9 @@ function Run-Dashboard {
 
         # Control KEYS  #KEYS
         $s = [char]0x2192     # right arrow
-        $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause  | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
-        $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
-        $lineKeys3  = "  I  $s Info Panel   |   V   $s MPD Info       |            | 1-6 $s Colors  | 8-9 $s Theme    | D $s Debug Log  "
+        $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause   | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
+        $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random  |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
+        $lineKeys3  = "  I  $s Info Panel   |   H   $s History        | V $s SrvInfo | 1-6 $s Colors  | 8-9 $s Theme    | D $s Debug Log  "
 
         # panel size
         $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length, $lineKeys3.Length | Measure-Object -Maximum).Maximum + 1
@@ -735,7 +793,7 @@ function Run-Dashboard {
         #
         # Play state
         #
-        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                  State: $playingStateTxt    |     $trackPlayStr"  $ColorStatusFore $ColorStatusBack $width
+        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt    |    $trackPlayStr"  $ColorStatusFore $ColorStatusBack $width
         if ($volumeMuted) {
             Write-Info "Muted         "
         }
