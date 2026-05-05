@@ -793,7 +793,7 @@ function Run-Dashboard {
         #
         # Play state
         #
-        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt    |   $trackPlayStr"  $ColorStatusFore $ColorStatusBack $width
+        Write-Text "  Vol: $volume%              Random: $randomMode             Consume: $consumeMode                   State: $playingStateTxt    | $trackPlayStr"  $ColorStatusFore $ColorStatusBack $width
         if ($volumeMuted) {
             Write-Info "Muted         "
         }
