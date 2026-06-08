@@ -1,4 +1,4 @@
-# 0024
+# 0025
 # -----------------------------------
 #
 # MPD BareControl (PS)
@@ -50,6 +50,7 @@ $ShowLog = $false;
 $Global:ColorIndex = 0
 
 
+
 class StringQueue {
     [int]   $MaxSize = 20
     [System.Collections.ArrayList] $Items
@@ -65,7 +66,7 @@ class StringQueue {
         ) {
             return
         }
-        
+
         # Drop oldest if full
         if ($this.Items.Count -ge $this.MaxSize) {
             $this.Items.RemoveAt(0)
@@ -84,6 +85,16 @@ class StringQueue {
     }
 }
 
+
+function Search-Google {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Query )
+
+    $encodedQuery = [System.Uri]::EscapeDataString($Query)
+    $url = "https://www.google.com/search?q=$encodedQuery"
+    Start-Process $url
+}
 
 function Quote-MPD($text) {
     return '"' + $text.Replace('"', '\"') + '"'
@@ -204,14 +215,14 @@ function Show-History {
     Write-Host "Oldest -> Newest`n"
 
     for ($i = 0; $i -lt $List.Count; $i++) {
-        $color = if ($i % 2 -eq 0) { 
-            $ColorPlaylistFore 
-        } else { 
-            $ColorStatusFore 
+        $color = if ($i % 2 -eq 0) {
+            $ColorPlaylistFore
+        } else {
+            $ColorStatusFore
         }
         Write-Host (" $($i+1): $($List[$i])") -ForegroundColor $color
-    }    
-    
+    }
+
     Write-Host "`n(press any key to return)`n"
     [Console]::ReadKey($true) | Out-Null
     Clear-Host
@@ -539,6 +550,13 @@ function Run-Dashboard {
                         }
                     }
 
+                "g" {   # Google
+                        if ($playingState) {
+                            Search-Google "$artist $album"
+                        }
+                    }
+
+
                 "h" {
                         Show-History $history.GetAll()
                     }
@@ -762,7 +780,7 @@ function Run-Dashboard {
         $s = [char]0x2192     # right arrow
         $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause   | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
         $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random  |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
-        $lineKeys3  = "  I  $s Info Panel   |   H   $s History        | V $s SrvInfo | 1-6 $s Colors  | 8-9 $s Theme    | D $s Debug Log  "
+        $lineKeys3  = "  I  $s Info Panel   |   H   $s History        | V $s SrvInfo | 1-6 $s Colors  | 8-9 $s Theme    | G $s Google It  "
 
         # panel size
         $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length, $lineKeys3.Length | Measure-Object -Maximum).Maximum + 1
