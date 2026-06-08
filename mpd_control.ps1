@@ -780,7 +780,7 @@ function Run-Dashboard {
         $s = [char]0x2192     # right arrow
         $lineKeys1  = " SPC $s Start/Stop   | N/P/F $s Next/Prev/FFWD | * $s Pause   | +/- $s Volume  | [/] $s Mute     | A $s Play All   "
         $lineKeys2  = "  L  $s Load Playlst |   X   $s Clear Queue    | R $s Random  |  C  $s Consume |  Q  $s Quit     | W $s Stop & Quit"
-        $lineKeys3  = "  I  $s Info Panel   |   H   $s History        | V $s SrvInfo | 1-6 $s Colors  | 8-9 $s Theme    | G $s Google It  "
+        $lineKeys3  = "  I  $s Info Panel   |   H   $s History        | G $s Google  | 1-6 $s Colors  | 8-9 $s Theme    | V $s SrvInfo "
 
         # panel size
         $width = ($lineHead.Length,  $lineKeys1.Length , $lineKeys2.Length, $lineKeys3.Length | Measure-Object -Maximum).Maximum + 1
