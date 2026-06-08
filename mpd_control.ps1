@@ -552,7 +552,7 @@ function Run-Dashboard {
 
                 "g" {   # Google
                         if ($playingState) {
-                            Search-Google "$artist $album"
+                            Search-Google "$artist $album $trackTitle"
                         }
                     }
 
